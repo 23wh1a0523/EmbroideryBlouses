@@ -1,0 +1,18 @@
+{
+  "name": "embroidery-ecom",
+  "version": "1.0.0",
+  "description": "Simple ecommerce site for blouse designs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.4",
+    "csv-parse": "^5.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

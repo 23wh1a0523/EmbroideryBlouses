@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - Add Design</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="bg.css">
+</head>
+<body>
+  <header>
+    <h1>Add Design</h1>
+    <nav><a href="index.html">View Designs</a></nav>
+  </header>
+  <main>
+    <div id="msg"></div>
+    <section class="quick-add">
+      <h2>Quick Add (multiple images)</h2>
+      <p>Select images, set a name, price and description for each, then click <strong>Add All</strong>.</p>
+      <form id="quick-form" enctype="multipart/form-data">
+        <label>Images (one or more)<br><input type="file" id="quick-images" name="images" accept="image/*" multiple required></label>
+        <div id="quick-list"></div>
+        <button type="submit">Add All</button>
+      </form>
+    </section>
+
+    <section class="manage-designs">
+      <h2>Manage Designs</h2>
+      <p>View, edit price, or remove designs.</p>
+      <div style="margin-bottom:8px;"><button id="refresh-manage" type="button">Refresh List</button></div>
+      <div id="manage-list"></div>
+    </section>
+
+    <section class="theme-upload" style="margin-top:1.5rem;">
+      <h2>Site Background</h2>
+      <p>Upload a background image to set as the site background.</p>
+      <form id="bg-form" enctype="multipart/form-data">
+        <label>Background image (prefer large JPG/PNG)<br><input type="file" name="background" accept="image/*" required></label>
+        <button type="submit">Upload Background</button>
+        <div id="bg-msg"></div>
+      </form>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>

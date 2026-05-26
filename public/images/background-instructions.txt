@@ -1,0 +1,7 @@
+Save the provided background image file here as "background.jpeg".
+Path: public/images/background.jpeg
+
+Notes:
+- Recommended format: JPEG (use .jpeg or .jpg). PNG is also accepted.
+- Supported names (in order): background.jpeg, background.jpg, background.png.
+- The site will use this file as the page background when present; a gradient fallback is used otherwise.

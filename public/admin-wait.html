@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin — waiting for login</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { background: #fff; }
+    main { padding:2rem; max-width:900px; margin:4rem auto; text-align:center; }
+    .spinner { width:48px;height:48px;border-radius:50%;border:6px solid #eee;border-top-color:#007bff;margin:0 auto 1rem; animation:spin 1s linear infinite }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="spinner" aria-hidden="true"></div>
+    <h2>Waiting for admin login...</h2>
+    <p>This window will open the admin console after you log in from the main page.</p>
+    <p id="status">Checking...</p>
+  </main>
+  <script>
+    async function check() {
+      try {
+        const res = await fetch('/api/admin-status', { cache: 'no-store', credentials: 'include' });
+        if (res.ok) {
+          const j = await res.json();
+          if (j.admin) {
+            window.location = '/admin.html';
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+      const s = document.getElementById('status'); if (s) s.textContent = 'Waiting...';
+      setTimeout(check, 800);
+    }
+    document.addEventListener('DOMContentLoaded', check);
+    // Allow the opener to notify successful login via postMessage (faster than polling)
+    window.addEventListener('message', (e) => {
+      try {
+        if (e.origin !== window.location.origin) return;
+        if (e.data && e.data.type === 'admin-login') {
+          window.location = '/admin.html';
+        }
+      } catch (err) {
+        // ignore
+      }
+    }, false);
+  </script>
+</body>
+</html>
