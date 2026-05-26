@@ -46,6 +46,7 @@ const upload = multer({ storage });
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use('/uploads', express.static(UPLOAD_DIR));
+app.use('/test-images', express.static(path.join(__dirname, 'test-images')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 async function ensureData() {
