@@ -50,6 +50,32 @@ function escapeHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Convert a PDF File into an array of image Files (one per page)
+async function convertPdfToImages(file, scale = 1.5, quality = 0.9) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('pdfjsLib not available');
+  // ensure workerSrc points to the same CDN bundle
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdf = await loadingTask.promise;
+  const images = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    const ctx = canvas.getContext('2d');
+    const renderTask = page.render({ canvasContext: ctx, viewport });
+    await renderTask.promise;
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+    const imgFileName = `${file.name.replace(/\.pdf$/i, '')}-page-${p}.jpg`;
+    const newFile = new File([blob], imgFileName, { type: 'image/jpeg' });
+    images.push(newFile);
+  }
+  return images;
+}
+
 function renderQuickList() {
   if (!quickList) return;
   quickList.innerHTML = '';
@@ -78,9 +104,24 @@ function renderQuickList() {
 }
 
 if (quickInput) {
-  quickInput.addEventListener('change', (e) => {
-    quickFiles = Array.from(e.target.files || []);
-    console.log('Quick Add: selected', quickFiles.length, 'files');
+  quickInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []);
+    quickFiles = [];
+    for (const f of files) {
+      try {
+        if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+          // convert PDF pages to individual image Files
+          const imgs = await convertPdfToImages(f);
+          quickFiles.push(...imgs);
+        } else {
+          quickFiles.push(f);
+        }
+      } catch (err) {
+        console.error('Failed to process file', f.name, err);
+        // if conversion fails, skip the PDF but continue with others
+      }
+    }
+    console.log('Quick Add: selected', quickFiles.length, 'files (images and converted PDF pages)');
     renderQuickList();
   });
 }
