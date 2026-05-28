@@ -224,6 +224,7 @@ async function loadManageList() {
             <div style="display:flex;gap:8px;align-items:center;">
               <label>Price: ₹<input type="number" class="m-price" value="${priceVal}" step="0.01" style="width:110px;"></label>
               <button class="m-save">Save</button>
+              <button class="m-send">Send</button>
               <button class="m-delete">Delete</button>
             </div>
           </div>
@@ -273,6 +274,35 @@ async function loadManageList() {
           if (msg) msg.textContent = 'Network error deleting design.';
         }
       });
+
+      // Send via WhatsApp (admin-only): prompt for phone and call server endpoint
+      const sendBtn = el.querySelector('.m-send');
+      if (sendBtn) {
+        sendBtn.addEventListener('click', async () => {
+          if (!d.imageUrl) { alert('This design has no image to send.'); return; }
+          const phone = prompt('Enter recipient phone number in international format (e.g. +9199...)');
+          if (!phone) return;
+          try {
+            if (msg) msg.textContent = 'Sending via WhatsApp...';
+            const caption = `Order: ${d.name} (ID: ${d.id}) - Price: ₹${(Number(d.price)||0).toFixed(2)}`;
+            const r = await apiFetch('/api/wa/send-image', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ to: phone, imageUrl: (d.imageUrl.startsWith('http') ? d.imageUrl : (window.location.origin + (d.imageUrl.startsWith('/') ? d.imageUrl : ('/' + d.imageUrl)))), caption })
+            });
+            const j = await r.json();
+            if (r.ok) {
+              if (msg) msg.textContent = 'Message sent.';
+            } else {
+              if (msg) msg.textContent = j.error || 'Failed to send message.';
+            }
+          } catch (err) {
+            console.error('Send via WhatsApp failed', err);
+            if (msg) msg.textContent = 'Error sending message.';
+          }
+        });
+      }
     });
   } catch (err) {
     console.error(err);

@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const multer = require('multer');
 const { parse } = require('csv-parse/sync');
+const twilio = require('twilio');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -339,6 +340,31 @@ app.post('/api/designs/bulk-upload', requireAdmin, upload.array('images'), async
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Bulk upload failed' });
+  }
+});
+
+// Send an image message via Twilio WhatsApp (sandbox/demo)
+// Expects JSON body: { to: '+9199...', imageUrl: 'https://...', caption: 'optional text' }
+app.post('/api/wa/send-image', requireAdmin, express.json(), async (req, res) => {
+  const { to, imageUrl, caption } = req.body || {};
+  if (!to || !imageUrl) return res.status(400).json({ error: 'to and imageUrl are required' });
+  const SID = process.env.TWILIO_ACCOUNT_SID;
+  const TOKEN = process.env.TWILIO_AUTH_TOKEN;
+  const FROM = process.env.TWILIO_WHATSAPP_FROM; // e.g. 'whatsapp:+14155238886'
+  if (!SID || !TOKEN || !FROM) return res.status(500).json({ error: 'Twilio not configured (set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM)' });
+  try {
+    const client = twilio(SID, TOKEN);
+    const toAddr = (to && String(to).startsWith('whatsapp:')) ? to : ('whatsapp:' + (String(to).startsWith('+') ? String(to) : ('+' + String(to))));
+    const msg = await client.messages.create({
+      from: FROM,
+      to: toAddr,
+      body: caption || undefined,
+      mediaUrl: [ imageUrl ]
+    });
+    return res.json({ ok: true, sid: msg.sid });
+  } catch (err) {
+    console.error('Twilio send error', err && err.message ? err.message : err);
+    return res.status(500).json({ error: err && err.message ? err.message : 'Failed to send via Twilio' });
   }
 });
 
