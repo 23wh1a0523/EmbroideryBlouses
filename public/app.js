@@ -39,7 +39,22 @@ function renderCard(d) {
   const orderBtn = document.createElement('a');
   orderBtn.className = 'order-btn';
   const idText = d.id ? ` (ID: ${d.id})` : '';
-  const message = `Hi, I would like to order this design: "${d.name}"${idText} - Price: ${priceText}. Please confirm availability.`;
+
+  // Build an absolute image URL so the WhatsApp message includes a link to the design image
+  const baseForImages = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : window.location.origin;
+  let imageLink = '';
+  if (d.imageUrl) {
+    if (/^https?:\/\//i.test(d.imageUrl)) imageLink = d.imageUrl;
+    else imageLink = baseForImages + (d.imageUrl.startsWith('/') ? d.imageUrl : ('/' + d.imageUrl));
+  }
+
+  const messageParts = [];
+  messageParts.push(`Hi, I would like to order this design: "${d.name}"${idText}`);
+  messageParts.push(`Price: ${priceText}`);
+  if (imageLink) messageParts.push(`Image: ${imageLink}`);
+  messageParts.push('Please confirm availability.');
+
+  const message = messageParts.join('\n');
   orderBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   orderBtn.target = '_blank';
   orderBtn.rel = 'noopener noreferrer';
