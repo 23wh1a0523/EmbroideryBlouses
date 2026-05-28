@@ -1,83 +1,124 @@
 let designsCache = [];
 
-async function loadDesigns() {
-  try {
-    const res = await fetch('/api/designs');
-    const data = await res.json();
-    designsCache = Array.isArray(data) ? data : [];
-    renderDesigns();
-  } catch (err) {
-    console.error(err);
-    const container = document.getElementById('designs');
-    if (container) container.innerHTML = '<p>Failed to load designs.</p>';
-  }
+const pager = { page: 1, limit: 24, loading: false, finished: false, sort: 'default' };
+
+function mapSortToParam(val) {
+  if (val === 'price-asc') return 'price:asc';
+  if (val === 'price-desc') return 'price:desc';
+  return 'createdAt:desc';
 }
 
-function renderDesigns() {
+function renderCard(d) {
   const container = document.getElementById('designs');
   if (!container) return;
-  container.innerHTML = '';
-  if (!designsCache || designsCache.length === 0) {
-    container.innerHTML = '<p>No designs yet. Add designs from the admin page.</p>';
-    return;
+  const card = document.createElement('div');
+  card.className = 'card';
+  const img = document.createElement('img');
+  img.src = d.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image';
+  img.alt = d.name || 'Design';
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  const name = document.createElement('h2');
+  name.textContent = d.name || 'Untitled';
+  const price = document.createElement('p');
+  price.className = 'price';
+  const pnum = Number(d.price);
+  const priceText = Number.isFinite(pnum)
+    ? pnum.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+    : '₹0.00';
+  price.textContent = priceText;
+  card.appendChild(img);
+  card.appendChild(name);
+  card.appendChild(price);
+
+  const phone = '919948088878';
+  const orderBtn = document.createElement('a');
+  orderBtn.className = 'order-btn';
+  const idText = d.id ? ` (ID: ${d.id})` : '';
+  const message = `Hi, I would like to order this design: "${d.name}"${idText} - Price: ${priceText}. Please confirm availability.`;
+  orderBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  orderBtn.target = '_blank';
+  orderBtn.rel = 'noopener noreferrer';
+  orderBtn.textContent = 'Order via WhatsApp';
+  card.appendChild(orderBtn);
+
+  if (d.description) {
+    const desc = document.createElement('p');
+    desc.textContent = d.description;
+    card.appendChild(desc);
   }
+  container.appendChild(card);
+}
 
-  const sortSelect = document.getElementById('sort-select');
-  const sort = sortSelect ? sortSelect.value : 'default';
-
-  let list = designsCache.slice();
-  if (sort === 'price-asc') {
-    list.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
-  } else if (sort === 'price-desc') {
-    list.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
-  } else {
-    list = list.slice().reverse();
+async function loadPage(reset = false) {
+  if (reset) {
+    const container = document.getElementById('designs');
+    if (container) container.innerHTML = '';
+    pager.page = 1;
+    pager.finished = false;
   }
+  if (pager.loading || pager.finished) return;
+  pager.loading = true;
+  try {
+    const sortParam = mapSortToParam(pager.sort);
+    const url = `/api/designs?page=${pager.page}&limit=${pager.limit}&sort=${encodeURIComponent(sortParam)}`;
+    const res = await fetch(url);
+    const data = await res.json();
 
-  list.forEach(d => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    const img = document.createElement('img');
-    img.src = d.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image';
-    img.alt = d.name || 'Design';
-    const name = document.createElement('h2');
-    name.textContent = d.name || 'Untitled';
-    const price = document.createElement('p');
-    price.className = 'price';
-    const pnum = Number(d.price);
-    const priceText = Number.isFinite(pnum)
-      ? pnum.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-      : '₹0.00';
-    price.textContent = priceText;
-    card.appendChild(img);
-    card.appendChild(name);
-    card.appendChild(price);
-
-    // WhatsApp order button for this design
-    const phone = '919948088878';
-    const orderBtn = document.createElement('a');
-    orderBtn.className = 'order-btn';
-    const idText = d.id ? ` (ID: ${d.id})` : '';
-    const message = `Hi, I would like to order this design: "${d.name}"${idText} - Price: ${priceText}. Please confirm availability.`;
-    orderBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    orderBtn.target = '_blank';
-    orderBtn.rel = 'noopener noreferrer';
-    orderBtn.textContent = 'Order via WhatsApp';
-    card.appendChild(orderBtn);
-
-    if (d.description) {
-      const desc = document.createElement('p');
-      desc.textContent = d.description;
-      card.appendChild(desc);
+    // fallback: server returned full array (legacy)
+    if (Array.isArray(data)) {
+      designsCache = data;
+      const container = document.getElementById('designs');
+      if (!container) return;
+      container.innerHTML = '';
+      let list = designsCache.slice();
+      if (pager.sort === 'price-asc') list.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+      else if (pager.sort === 'price-desc') list.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+      else list = list.slice().reverse();
+      list.forEach(renderCard);
+      pager.finished = true;
+      pager.loading = false;
+      return;
     }
-    container.appendChild(card);
-  });
+
+    if (data && Array.isArray(data.items)) {
+      if (data.items.length === 0 && pager.page === 1) {
+        const container = document.getElementById('designs');
+        if (container) container.innerHTML = '<p>No designs yet. Add designs from the admin page.</p>';
+        pager.finished = true;
+      } else {
+        data.items.forEach(renderCard);
+        pager.page += 1;
+        if (data.totalPages && pager.page > data.totalPages) pager.finished = true;
+      }
+    } else {
+      console.error('Unexpected response from /api/designs', data);
+    }
+  } catch (err) {
+    console.error(err);
+    if (pager.page === 1) {
+      const container = document.getElementById('designs');
+      if (container) container.innerHTML = '<p>Failed to load designs.</p>';
+    }
+  } finally {
+    pager.loading = false;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadDesigns();
+  loadPage();
   const sortSelect = document.getElementById('sort-select');
-  if (sortSelect) sortSelect.addEventListener('change', renderDesigns);
+  if (sortSelect) sortSelect.addEventListener('change', () => {
+    pager.sort = sortSelect.value;
+    loadPage(true);
+  });
+
+  const sentinel = document.getElementById('list-end-sentinel');
+  if (sentinel) {
+    new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadPage();
+    }, { rootMargin: '600px' }).observe(sentinel);
+  }
 });
 // Admin window handling: open admin in separate window/tab and close on logout
 let adminWin = null;

@@ -62,7 +62,50 @@ async function ensureData() {
 app.get('/api/designs', async (req, res) => {
   try {
     const txt = await fs.readFile(DATA_FILE, 'utf8');
-    const designs = JSON.parse(txt || '[]');
+    let designs = JSON.parse(txt || '[]');
+
+    // optional search query (q)
+    const q = (req.query.q || '').toString().trim().toLowerCase();
+    if (q) {
+      designs = designs.filter(d => {
+        const n = (d.name || '').toString().toLowerCase();
+        const desc = (d.description || '').toString().toLowerCase();
+        return n.includes(q) || desc.includes(q);
+      });
+    }
+
+    // optional sort param: e.g. sort=price:asc or sort=createdAt:desc
+    const sortParam = (req.query.sort || '').toString().trim();
+    if (sortParam) {
+      const parts = sortParam.split(':');
+      const field = parts[0] || 'createdAt';
+      const dir = (parts[1] || 'desc').toLowerCase();
+      designs.sort((a, b) => {
+        if (field === 'price') {
+          const va = Number(a.price) || 0;
+          const vb = Number(b.price) || 0;
+          return (va - vb) * (dir === 'asc' ? 1 : -1);
+        }
+        const ta = new Date(a.createdAt || 0);
+        const tb = new Date(b.createdAt || 0);
+        return (ta - tb) * (dir === 'asc' ? 1 : -1);
+      });
+    }
+
+    // pagination: if page & limit provided, return a paged response
+    const pageRaw = req.query.page;
+    const limitRaw = req.query.limit;
+    const page = pageRaw ? Math.max(1, parseInt(pageRaw, 10) || 1) : null;
+    const limit = limitRaw ? Math.max(1, Math.min(200, parseInt(limitRaw, 10) || 24)) : null;
+    if (page && limit) {
+      const total = designs.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const start = (page - 1) * limit;
+      const items = designs.slice(start, start + limit);
+      return res.json({ items, total, page, totalPages, limit });
+    }
+
+    // legacy behavior: return full array when pagination not requested
     res.json(designs);
   } catch (err) {
     console.error(err);
