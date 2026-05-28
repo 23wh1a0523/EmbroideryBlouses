@@ -34,6 +34,13 @@ function requireAdmin(req, res, next) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
+// Small helper to escape text for embedding in HTML attributes
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, (m) => {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+  });
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
@@ -222,6 +229,56 @@ app.post('/api/designs/bulk', requireAdmin, upload.fields([{ name: 'csv', maxCou
       designs.push(newDesign);
       added.push(newDesign);
     }
+
+    // Per-design share page to enable rich link previews (Open Graph)
+    app.get('/d/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+        const txt = await fs.readFile(DATA_FILE, 'utf8');
+        const designs = JSON.parse(txt || '[]');
+        const design = designs.find(d => String(d.id) === String(id));
+        if (!design) return res.status(404).send('Design not found');
+
+        const name = design.name || 'Design';
+        const desc = design.description || '';
+        let imageUrl = design.imageUrl || '';
+        if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
+          // make absolute using the current host
+          const host = req.get('host');
+          const proto = req.protocol || 'https';
+          imageUrl = `${proto}://${host}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+        }
+        const pageUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+
+        const html = `<!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>${escapeHtml(name)}</title>
+      <meta property="og:type" content="website">
+      <meta property="og:title" content="${escapeHtml(name)}">
+      <meta property="og:description" content="${escapeHtml(desc)}">
+      <meta property="og:image" content="${escapeHtml(imageUrl)}">
+      <meta property="og:url" content="${escapeHtml(pageUrl)}">
+      <meta name="twitter:card" content="summary_large_image">
+    </head>
+    <body>
+      <p>Opening design… <a href="/">Go to site</a></p>
+      <script>
+        // Navigate back to the app shell after a short delay so users hit the storefront
+        setTimeout(function(){ try { window.location = '/'; } catch (e) {} }, 700);
+      </script>
+    </body>
+    </html>`;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+      } catch (err) {
+        console.error('Share page error', err);
+        res.status(500).send('Server error');
+      }
+    });
 
     await fs.writeFile(DATA_FILE, JSON.stringify(designs, null, 2), 'utf8');
     res.json({ addedCount: added.length, errors, added });

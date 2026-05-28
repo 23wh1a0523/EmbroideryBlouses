@@ -40,19 +40,16 @@ function renderCard(d) {
   orderBtn.className = 'order-btn';
   const idText = d.id ? ` (ID: ${d.id})` : '';
 
-  // Build an absolute image URL so the WhatsApp message includes a link to the design image
-  const baseForImages = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : window.location.origin;
-  let imageLink = '';
-  if (d.imageUrl) {
-    if (/^https?:\/\//i.test(d.imageUrl)) imageLink = d.imageUrl;
-    else imageLink = baseForImages + (d.imageUrl.startsWith('/') ? d.imageUrl : ('/' + d.imageUrl));
-  }
+  // Share page URL (use API_BASE if configured, otherwise current origin)
+  const shareBase = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : window.location.origin;
+  const shareUrl = (shareBase.replace(/\/+$/g, '')) + '/d/' + encodeURIComponent(d.id);
 
   const messageParts = [];
   messageParts.push(`Hi, I would like to order this design: "${d.name}"${idText}`);
   messageParts.push(`Price: ${priceText}`);
-  if (imageLink) messageParts.push(`Image: ${imageLink}`);
   messageParts.push('Please confirm availability.');
+  // Put the share URL on its own line so WhatsApp generates a rich preview
+  messageParts.push(shareUrl);
 
   const message = messageParts.join('\n');
   orderBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
