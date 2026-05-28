@@ -47,10 +47,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // Allow cross-origin requests (useful if front-end is hosted separately as a static site)
 app.use((req, res, next) => {
-  const origin = process.env.CORS_ORIGIN || '*';
+  // Allow configuring a single allowed origin via CORS_ORIGIN env var.
+  // If not set, fall back to the requesting Origin header or '*' (less restrictive).
+  const configured = process.env.CORS_ORIGIN;
+  const origin = configured || req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (origin !== '*') {
+    // only allow credentials when a specific origin is set
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
