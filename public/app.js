@@ -1,3 +1,7 @@
+// API base can be set by a static host via `window.API_BASE`. Leave empty for same-origin.
+const API_BASE = (window.API_BASE || '').replace(/\/+$/g, '');
+function apiFetch(path, opts) { return fetch((API_BASE ? API_BASE : '') + path, opts); }
+
 let designsCache = [];
 
 const pager = { page: 1, limit: 24, loading: false, finished: false, sort: 'default' };
@@ -61,8 +65,8 @@ async function loadPage(reset = false) {
   pager.loading = true;
   try {
     const sortParam = mapSortToParam(pager.sort);
-    const url = `/api/designs?page=${pager.page}&limit=${pager.limit}&sort=${encodeURIComponent(sortParam)}`;
-    const res = await fetch(url);
+    const urlPath = `/api/designs?page=${pager.page}&limit=${pager.limit}&sort=${encodeURIComponent(sortParam)}`;
+    const res = await apiFetch(urlPath);
     const data = await res.json();
 
     // fallback: server returned full array (legacy)
@@ -126,7 +130,7 @@ let adminWin = null;
 // Admin login UI: show/hide Add Design link based on /api/admin-status
 async function checkAdminStatus() {
   try {
-    const res = await fetch('/api/admin-status', { credentials: 'include' });
+    const res = await apiFetch('/api/admin-status', { credentials: 'include' });
     if (!res.ok) throw new Error('status failed');
     const j = await res.json();
     const adminLink = document.getElementById('admin-link');
@@ -137,7 +141,7 @@ async function checkAdminStatus() {
       adminBtn.onclick = (e) => {
         // If currently logged in -> logout and close admin window if opened here
         if (adminBtn.textContent === 'Logout') {
-          fetch('/api/admin-logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+          apiFetch('/api/admin-logout', { method: 'POST', credentials: 'include' }).catch(() => {});
           if (adminLink) adminLink.style.display = 'none';
           if (adminWin && !adminWin.closed) {
             try { adminWin.close(); } catch (_) {}
@@ -198,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!waitWin) { if (msgEl) msgEl.textContent = 'Popup blocked. Allow popups for this site.'; return; }
 
       try {
-        const r = await fetch('/api/admin-login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+        const r = await apiFetch('/api/admin-login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
         if (r.ok) {
           if (adminLink) adminLink.style.display = 'inline-block';
           if (adminBtn) adminBtn.textContent = 'Logout';

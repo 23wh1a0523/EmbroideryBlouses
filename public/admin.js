@@ -2,10 +2,14 @@ function showNotAuthorized() {
   document.body.innerHTML = '<main style="padding:2rem;max-width:900px;margin:2rem auto;">\n    <h2>Not authorized</h2>\n    <p>You are not logged in as admin. Please return to the <a href="index.html">home page</a> and sign in as admin.</p>\n  </main>';
 }
 
+// API base can be set by a static host via `window.API_BASE`. Leave empty for same-origin.
+const API_BASE = (window.API_BASE || '').replace(/\/+$/g, '');
+function apiFetch(path, opts) { return fetch((API_BASE ? API_BASE : '') + path, opts); }
+
 // Ensure only admin can use admin page
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    const res = await fetch('/api/admin-status', { credentials: 'include' });
+    const res = await apiFetch('/api/admin-status', { credentials: 'include' });
     if (!res.ok) return showNotAuthorized();
     const j = await res.json();
     if (!j.admin) return showNotAuthorized();
@@ -24,7 +28,7 @@ if (designForm) {
     const msg = document.getElementById('msg');
     if (msg) msg.textContent = 'Uploading...';
     try {
-      const res = await fetch('/api/designs', { method: 'POST', credentials: 'include', body: fd });
+      const res = await apiFetch('/api/designs', { method: 'POST', credentials: 'include', body: fd });
       const json = await res.json();
       if (res.ok) {
         if (msg) msg.textContent = 'Design added.';
@@ -151,7 +155,7 @@ if (quickForm) {
     if (submitBtn) submitBtn.disabled = true;
     if (msg) msg.textContent = 'Uploading...';
     try {
-      const res = await fetch('/api/designs/bulk-upload', { method: 'POST', credentials: 'include', body: fd });
+      const res = await apiFetch('/api/designs/bulk-upload', { method: 'POST', credentials: 'include', body: fd });
       const json = await res.json();
       if (res.ok) {
         if (msg) msg.textContent = `Added ${json.addedCount} designs.`;
@@ -202,7 +206,7 @@ async function loadManageList() {
   const msg = document.getElementById('msg');
   if (!container) return;
   try {
-    const res = await fetch('/api/designs', { credentials: 'include' });
+    const res = await apiFetch('/api/designs', { credentials: 'include' });
     if (!res.ok) { container.innerHTML = '<p>Failed to load designs.</p>'; return; }
     const designs = await res.json();
     container.innerHTML = '';
@@ -234,7 +238,7 @@ async function loadManageList() {
         const nameNew = nameInput && nameInput.value ? nameInput.value.trim() : '';
         if (!nameNew) { if (msg) msg.textContent = 'Name cannot be empty.'; return; }
         try {
-          const r = await fetch(`/api/designs/${d.id}`, {
+          const r = await apiFetch(`/api/designs/${d.id}`, {
             method: 'PUT',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -256,7 +260,7 @@ async function loadManageList() {
       el.querySelector('.m-delete').addEventListener('click', async () => {
         if (!confirm('Delete this design?')) return;
         try {
-          const r = await fetch(`/api/designs/${d.id}`, { method: 'DELETE', credentials: 'include' });
+          const r = await apiFetch(`/api/designs/${d.id}`, { method: 'DELETE', credentials: 'include' });
           const j = await r.json();
           if (r.ok) {
             if (msg) msg.textContent = 'Design deleted.';
@@ -297,7 +301,7 @@ if (bulkForm) {
     for (let i = 0; i < images.length; i++) fd.append('images', images[i]);
     msg.textContent = 'Importing...';
     try {
-      const res = await fetch('/api/designs/bulk', { method: 'POST', credentials: 'include', body: fd });
+      const res = await apiFetch('/api/designs/bulk', { method: 'POST', credentials: 'include', body: fd });
       const json = await res.json();
       if (res.ok) {
         msg.textContent = `Imported ${json.addedCount} designs.`;
@@ -327,7 +331,7 @@ if (priceForm) {
     fd.append('csv', csvFile);
     msg.textContent = 'Updating prices...';
     try {
-      const res = await fetch('/api/designs/update-prices', { method: 'POST', credentials: 'include', body: fd });
+      const res = await apiFetch('/api/designs/update-prices', { method: 'POST', credentials: 'include', body: fd });
       const json = await res.json();
       if (res.ok) {
         msg.textContent = `Updated ${json.updatedCount} prices.`;
@@ -350,7 +354,7 @@ if (exportBtn) {
     const msg = document.getElementById('bulk-msg');
     msg.textContent = 'Preparing export...';
     try {
-      const res = await fetch('/api/designs/export', { credentials: 'include' });
+      const res = await apiFetch('/api/designs/export', { credentials: 'include' });
       if (!res.ok) { msg.textContent = 'Failed to export.'; return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -382,7 +386,7 @@ if (bgForm) {
     fd.append('background', file);
     if (msg) msg.textContent = 'Uploading background...';
     try {
-      const res = await fetch('/api/background', { method: 'POST', credentials: 'include', body: fd });
+      const res = await apiFetch('/api/background', { method: 'POST', credentials: 'include', body: fd });
       const json = await res.json();
       if (res.ok) {
         if (msg) msg.textContent = 'Background uploaded.';
